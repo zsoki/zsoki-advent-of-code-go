@@ -44,6 +44,20 @@ var directions = [4]coord{
 	west,
 }
 
+var perpendiculars = map[coord][2]coord{
+	north: {east, west},
+	east:  {north, south},
+	south: {east, west},
+	west:  {north, south},
+}
+
+var opposites = map[coord]coord{
+	north: south,
+	east:  west,
+	south: north,
+	west:  east,
+}
+
 type queue struct {
 	items []coord
 }
@@ -128,7 +142,116 @@ func Day12a() {
 	}
 
 	fmt.Printf("\nPrice of fences: %v", fencePrice)
+}
 
+type coordDir struct {
+	crd, dir coord
+}
+
+func Day12b() {
+	lines := make(chan string)
+	go common.ReadLines("input/day12.txt", lines)
+
+	theMap := make([][]byte, 0)
+	for line := range lines {
+		theMap = append(theMap, []byte(line))
+	}
+
+	mapNWbounds := coord{0, 0}
+	mapSEbounds := coord{len(theMap) - 1, len(theMap[0]) - 1}
+
+	visited := make([][]bool, len(theMap))
+	for i := range visited {
+		visited[i] = make([]bool, len(theMap[i]))
+	}
+
+	fencePrice := 0
+
+	startCoord, unvisitedRemaining := firstUnvisited(visited)
+	for unvisitedRemaining {
+		fifo := queue{make([]coord, 0)}
+		visited[startCoord.row][startCoord.col] = true
+		fifo.enqueue(startCoord)
+		area := 1
+
+		fenceVisited := make(map[coordDir]struct{})
+		sides := 0
+
+		for !fifo.isEmpty() {
+			curCoord := fifo.dequeue()
+			curByte := theMap[curCoord.row][curCoord.col]
+
+			// Look around
+			for _, direction := range directions {
+				nextCoord := curCoord.add(direction)
+
+				if nextCoord.lt(mapNWbounds) || nextCoord.gt(mapSEbounds) {
+					// Neighbor is out of bounds, check if we counted the side already
+					_, fncVisited := fenceVisited[coordDir{nextCoord, direction}]
+					if fncVisited {
+						// Already walked along the perimeter
+						continue
+					}
+					walkAlongPerimeter(&fenceVisited, nextCoord, &theMap, direction, curByte, [2]coord{mapNWbounds, mapSEbounds})
+					sides++
+					continue
+				}
+
+				nextByte := theMap[nextCoord.row][nextCoord.col]
+
+				// If neighbor in same region, and unvisited, then queue it
+				if curByte == nextByte && !visited[nextCoord.row][nextCoord.col] {
+					visited[nextCoord.row][nextCoord.col] = true
+					area++
+					fifo.enqueue(nextCoord)
+				} else if curByte != nextByte {
+					// Different region, that means a side
+					_, fncVisited := fenceVisited[coordDir{nextCoord, direction}]
+					if fncVisited {
+						// Already walked along the perimeter
+						continue
+					}
+					walkAlongPerimeter(&fenceVisited, nextCoord, &theMap, direction, curByte, [2]coord{mapNWbounds, mapSEbounds})
+					sides++
+				}
+			}
+		}
+
+		// Region is traversed.
+		fencePrice += area * sides
+		startCoord, unvisitedRemaining = firstUnvisited(visited)
+	}
+
+	fmt.Printf("\nPrice of fences: %v", fencePrice)
+
+}
+
+func walkAlongPerimeter(fenceVisited *map[coordDir]struct{}, perimeterCoord coord, theMap *[][]byte, direction coord, regionByte byte, bounds [2]coord) {
+	// This is an unvisited side. Mark along the perimeter
+	(*fenceVisited)[coordDir{perimeterCoord, direction}] = struct{}{}
+
+	// Walk along the side perimeter along both directions
+	for _, perpendicularDir := range perpendiculars[direction] {
+		nextPerpCoord := perimeterCoord.add(perpendicularDir)
+		nextPerpByte := safeByte(theMap, nextPerpCoord, bounds)
+		lookBackCoord := nextPerpCoord.add(opposites[direction])
+		lookBackByte := safeByte(theMap, lookBackCoord, bounds)
+		for nextPerpByte != regionByte && lookBackByte == regionByte {
+			(*fenceVisited)[coordDir{nextPerpCoord, direction}] = struct{}{}
+			nextPerpCoord = nextPerpCoord.add(perpendicularDir)
+			nextPerpByte = safeByte(theMap, nextPerpCoord, bounds)
+			lookBackCoord = nextPerpCoord.add(opposites[direction])
+			lookBackByte = safeByte(theMap, lookBackCoord, bounds)
+		}
+	}
+}
+
+// Returns 0 for out of bounds
+func safeByte(theMap *[][]byte, nextCoord coord, bounds [2]coord) byte {
+	if nextCoord.lt(bounds[0]) || nextCoord.gt(bounds[1]) {
+		return 0
+	}
+	return (*theMap)[nextCoord.row][nextCoord.col]
 }
 
 func firstUnvisited(visitedMap [][]bool) (unvisited coord, ok bool) {

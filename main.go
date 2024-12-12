@@ -15,5 +15,5 @@ func timer() func() {
 
 func main() {
 	defer timer()()
-	day12.Day12a()
+	day12.Day12b()
 }
