@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"time"
-	"zsoki/aoc/day13"
+	"zsoki/aoc/day17"
 )
 
 func timer() func() {
@@ -15,5 +15,5 @@ func timer() func() {
 
 func main() {
 	defer timer()()
-	day13.Day13b()
+	day17.Day17a()
 }
