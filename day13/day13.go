@@ -2,21 +2,15 @@ package day13
 
 import (
 	"fmt"
-	"log"
-	"strconv"
 	"strings"
 	"zsoki/aoc/common"
 )
 
 type puzzleInput struct {
-	buttons *[2]common.Coord
-	reward  common.Coord
+	aButt  common.Coord
+	bButt  common.Coord
+	target common.Coord
 }
-
-const (
-	aIdx = iota
-	bIdx
-)
 
 type recursiveParams struct {
 	depth, whichButton int
@@ -27,24 +21,7 @@ type Stack struct {
 	items []recursiveParams
 }
 
-var minimum *common.Coord = &common.Coord{}
-
-func (q *Stack) Push(data recursiveParams) {
-	q.items = append(q.items, data)
-}
-
-func (q *Stack) Pop() recursiveParams {
-	if q.isEmpty() {
-		log.Panic("Queue is empty")
-	}
-	returnVal := q.items[len(q.items)-1]
-	q.items = q.items[:len(q.items)-1]
-	return returnVal
-}
-
-func (q *Stack) isEmpty() bool {
-	return len(q.items) == 0
-}
+var minimum = &common.Coord{}
 
 func Day13a() {
 	lines := make(chan string)
@@ -53,11 +30,11 @@ func Day13a() {
 	var puzzleParams []puzzleInput
 
 	lineNum := 0
-	var buttonA, buttonB, reward common.Coord
+	var buttonA, buttonB, target common.Coord
 	for line := range lines {
 		if lineNum == 3 {
 			lineNum = 0
-			puzzleParams = append(puzzleParams, puzzleInput{&[2]common.Coord{buttonA, buttonB}, reward})
+			puzzleParams = append(puzzleParams, puzzleInput{buttonA, buttonB, target})
 			continue
 		}
 
@@ -71,7 +48,7 @@ func Day13a() {
 		case 1:
 			buttonB = common.Coord{Row: row, Col: col}
 		case 2:
-			reward = common.Coord{Row: row, Col: col}
+			target = common.Coord{Row: row, Col: col}
 		}
 		lineNum++
 	}
@@ -85,21 +62,21 @@ func doTheThing(puzzleParams []puzzleInput) int {
 	resultSum := 0
 
 	for _, param := range puzzleParams {
-		bButton := param.buttons[bIdx]
-		aButton := param.buttons[aIdx]
+		bButton := param.bButt
+		aButton := param.aButt
 
 		maxBPush := 0
 		acc := common.Coord{}
-		for acc.Lt(param.reward) {
+		for acc.Lt(param.target) {
 			acc = bButton.Times(maxBPush)
 			maxBPush++
 		}
-		if acc.Eq(param.reward) {
+		if acc.Eq(param.target) {
 			resultSum += maxBPush
 		} else {
 			maxBPush = maxBPush - 2
 
-			result := param.reward
+			result := param.target
 			possible := false
 			aPush := 0
 
@@ -127,64 +104,33 @@ func doTheThing(puzzleParams []puzzleInput) int {
 	return resultSum
 }
 
-type bigCoord struct {
-	Row, Col uint64
-}
-
-func (left bigCoord) add(right bigCoord) bigCoord {
-	return bigCoord{left.Row + right.Row, left.Col + right.Col}
-}
-
-func (left bigCoord) sub(right bigCoord) bigCoord {
-	return bigCoord{left.Row - right.Row, left.Col - right.Col}
-}
-
-func (left bigCoord) gt(right bigCoord) bool {
-	return left.Row > right.Row && left.Col > right.Col
-}
-
-func (left bigCoord) lt(right bigCoord) bool {
-	return left.Row < right.Row && left.Col < right.Col
-}
-
-func (left bigCoord) eq(right bigCoord) bool {
-	return left.Row == right.Row && left.Col == right.Col
-}
-
-func (left bigCoord) times(mult uint64) bigCoord { return bigCoord{left.Row * mult, left.Col * mult} }
-
-type bigPuzzle struct {
-	buttons *[2]bigCoord
-	target  bigCoord
-}
-
 func Day13b() {
 	lines := make(chan string)
 	go common.ReadLines("input/day13test2.txt", lines)
 
-	var puzzleParams []bigPuzzle
+	var puzzleParams []puzzleInput
 
 	lineNum := 0
-	var buttonA, buttonB, reward bigCoord
+	var buttonA, buttonB, target common.Coord
 	for line := range lines {
 		if lineNum == 3 {
 			lineNum = 0
-			//puzzleParams = append(puzzleParams, bigPuzzle{&[2]bigCoord{buttonA, buttonB}, reward.add(bigCoord{10000000000000, 10000000000000})})
-			puzzleParams = append(puzzleParams, bigPuzzle{&[2]bigCoord{buttonA, buttonB}, reward})
+			target = target.Add(common.Coord{Row: 10000000000000, Col: 10000000000000})
+			puzzleParams = append(puzzleParams, puzzleInput{buttonA, buttonB, target})
 			continue
 		}
 
 		fields := strings.Fields(line)
-		row, _ := strconv.ParseUint(fields[0], 10, 64)
-		col, _ := strconv.ParseUint(fields[1], 10, 64)
+		row := common.ToInt(fields[0])
+		col := common.ToInt(fields[1])
 
 		switch lineNum {
 		case 0:
-			buttonA = bigCoord{Row: row, Col: col}
+			buttonA = common.Coord{Row: row, Col: col}
 		case 1:
-			buttonB = bigCoord{Row: row, Col: col}
+			buttonB = common.Coord{Row: row, Col: col}
 		case 2:
-			reward = bigCoord{Row: row, Col: col}
+			target = common.Coord{Row: row, Col: col}
 		}
 		lineNum++
 	}
@@ -194,14 +140,14 @@ func Day13b() {
 	fmt.Println(resultSum)
 }
 
-func doTheThing2(puzzleParams []bigPuzzle) uint64 {
-	var resultSum uint64 = 0
+func doTheThing2(puzzleParams []puzzleInput) int {
+	var resultSum = 0
 
 	for _, param := range puzzleParams {
-		bButton := param.buttons[bIdx]
-		aButton := param.buttons[aIdx]
+		bButton := param.bButt
+		aButton := param.aButt
 
-		var maxBPush uint64 = 0
+		var maxBPush = 0
 		bDiv1 := param.target.Row / bButton.Row
 		bDiv2 := param.target.Col / bButton.Col
 		if bDiv1 < bDiv2 {
@@ -210,34 +156,40 @@ func doTheThing2(puzzleParams []bigPuzzle) uint64 {
 			maxBPush = bDiv2
 		}
 
-		acc := bButton.times(maxBPush)
+		acc := bButton.Times(maxBPush)
 
-		if acc.eq(param.target) {
+		if acc.Eq(param.target) {
 			resultSum += maxBPush
 		} else {
 
 			possible := false
 
-			var aPush uint64 = 0
-			var bPush uint64 = 0
+			aPush := 0
+			bPush := 0
 
 			bSum := acc
 
 			canSkip := false
-			lastFound := uint64(0)
-			skip := uint64(1)
+			lastFound := 0
+			skip := 1
 
-			for bPush = maxBPush; bPush > 0; bPush -= skip {
-				//fmt.Printf("\nmaxBPush=%v", maxBPush)
-				bSum = bButton.times(bPush)
-				remaining := param.target.sub(bSum)
-
-				//fmt.Printf("\nBelementem, bPush=%v, skip=%v", bPush, skip)
+			for bPush = maxBPush; ; {
+				if bPush < skip {
+					// Not found
+					fmt.Printf("\nNot found! bPush=%d lastFound=%d maxBPush=%d skip=%d", bPush, lastFound, maxBPush, skip)
+					break
+				}
+				bPush -= skip
+				bSum = bButton.Times(bPush)
+				remaining := param.target.Sub(bSum)
 
 				aMod1 := remaining.Row % aButton.Row
 				aMod2 := remaining.Col % aButton.Col
+
+				fmt.Printf("\naMod1=%d aMod2=%d", aMod1, aMod2)
 				if aMod1 == 0 && aMod2 == 0 {
-					//fmt.Printf("\nbPush=%v, since last found=%v, aMod1=%v, aMod2=%v", bPush, skip, aMod1, aMod2)
+					// Problem is that the modulos could be synced and there never be an offset that aligns 0 with 0
+					fmt.Printf("\nbPush=%v, since last found=%v, aMod1=%v, aMod2=%v", bPush, skip, aMod1, aMod2)
 					if !canSkip {
 						lastFound = bPush
 						canSkip = true
@@ -252,20 +204,6 @@ func doTheThing2(puzzleParams []bigPuzzle) uint64 {
 						break
 					}
 				}
-
-				//if aMod1 == 0 && aMod2 == 0 {
-				//	aMod2 := remaining.Col % aButton.Col
-				//	if aMod2 == 0 {
-				//		aDiv1 := remaining.Row / aButton.Row
-				//		aDiv2 := remaining.Col / aButton.Col
-				//		if aDiv1 == aDiv2 {
-				//			aPush = aDiv1
-				//			possible = true
-				//			break
-				//		}
-				//	}
-				//}
-				//bSum = bSum.sub(bButton)
 			}
 
 			fmt.Printf("\naPush=%v, bPush=%v\n\n", aPush, bPush)
