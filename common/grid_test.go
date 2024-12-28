@@ -17,7 +17,7 @@ func TestGrid(t *testing.T) {
 
 	center := Coord{2, 2}
 
-	for dirIdx, dir := range Directions {
+	for dirIdx, dir := range AllDirections {
 		expected := strconv.Itoa(dirIdx)
 		actual := string(grid.get(center.Add(dir)))
 		if actual != expected {
